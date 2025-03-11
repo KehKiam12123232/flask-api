@@ -14,13 +14,19 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
-# ✅ MongoDB Connection Function (Fix for Fork Issues & SSL)
+# ✅ MongoDB Connection Function (Fix for Fork Issues, SSL & Timeout)
 def get_mongo_collection():
     MONGO_URI = os.getenv("MONGO_URI")
     if not MONGO_URI:
         raise ValueError("MONGO_URI environment variable is not set!")
-    client = MongoClient(MONGO_URI, tls=True)
-    return client["API_TEST"]["items"], client["API_TEST"]["logs"]
+    try:
+        client = MongoClient(MONGO_URI, tls=True, serverSelectionTimeoutMS=5000)  # 5 sec timeout
+        client.admin.command('ping')  # Test MongoDB connection
+        print("✅ Successfully connected to MongoDB!")
+        return client["API_TEST"]["items"], client["API_TEST"]["logs"]
+    except Exception as e:
+        print(f"❌ MongoDB Connection Failed: {e}")
+        raise e
 
 # ✅ SQLite Model
 class Item(db.Model):
@@ -72,8 +78,8 @@ def create_mongo_item():
 @app.route('/mongo/items', methods=['GET'])
 def get_mongo_items():
     mongo_collection, _ = get_mongo_collection()
-    items = list(mongo_collection.find({}, {"_id": 0}))
-    log_activity("READ_MONGO", "Fetched all items from MongoDB.")
+    items = list(mongo_collection.find({}, {"_id": 0}).limit(50))  # Fetch only 50 items
+    log_activity("READ_MONGO", "Fetched items from MongoDB.")
     return jsonify(items), 200
 
 @app.route('/mongo/items/<string:item_id>', methods=['GET'])
