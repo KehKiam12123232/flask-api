@@ -98,6 +98,12 @@ def get_logs():
     logs = list(mongo_logs.find({}, {"_id": 0}))
     return jsonify(logs), 200
 
+# ------------------- Homepage Route -------------------
+@app.route('/')
+def home():
+    return jsonify({"message": "Flask API is running!"})
+
 # ✅ Run the API using Gunicorn for production
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=10000, debug=True)
+    port = int(os.getenv("PORT", 10000))  # Use dynamic port for Render
+    app.run(host='0.0.0.0', port=port, debug=True)
